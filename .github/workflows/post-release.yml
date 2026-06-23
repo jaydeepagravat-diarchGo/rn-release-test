@@ -15,7 +15,6 @@ on:
       GH_PAT:
         required: false
 
-
 jobs:
   post-release:
     name: "Post-Release (${{ inputs.platform }})"
@@ -29,7 +28,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: main
           fetch-depth: 0
           token: ${{ secrets.GH_PAT || github.token }}
 
@@ -74,12 +72,13 @@ jobs:
             | tail -1)
 
           if [ -z "$PREV" ]; then
-            echo "No previous tag found for platform '$PLATFORM'"
-            echo "previous_tag=" >> "$GITHUB_OUTPUT"
+            PREV=$(git rev-list --max-parents=0 HEAD)
+            echo "No previous tag — using initial commit: $PREV"
           else
             echo "Previous tag: $PREV"
-            echo "previous_tag=$PREV" >> "$GITHUB_OUTPUT"
           fi
+
+          echo "previous_tag=$PREV" >> "$GITHUB_OUTPUT"
 
       # ----------------------------------------------------------------
       # 5. Generate release notes
