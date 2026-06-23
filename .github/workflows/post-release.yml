@@ -40,24 +40,54 @@ jobs:
         run: bash .github/scripts/extract-version.sh "${{ inputs.platform }}"
 
       # ----------------------------------------------------------------
-      # 3. Create & push Git tag (idempotent)
+      # 3. Load release metadata if promoting an existing Beta build
       # ----------------------------------------------------------------
+      - name: Load beta release metadata (for promotions)
+        id: beta_metadata
+        shell: bash
+        if: inputs.lane == 'promote_to_production'
+        env:
+          PLATFORM: ${{ inputs.platform }}
+          VERSION:  ${{ steps.version.outputs.version }}
+          BUILD:    ${{ steps.version.outputs.build }}
+        run: bash .github/scripts/load-release-metadata.sh || true
+
+      # ----------------------------------------------------------------
+      # 4. Create & push Git tag to the correct commit
+      # ----------------------------------------------------------------
+      - name: Resolve target commit for tagging
+        id: tag_target
+        shell: bash
+        run: |
+          if [[ "${{ inputs.lane }}" == "promote_to_production" ]]; then
+            # During promotion, tag the exact Beta commit (not current HEAD)
+            TARGET_SHA="${{ steps.beta_metadata.outputs.commit_sha }}"
+            echo "📌 Promotion: tagging existing Beta commit: $TARGET_SHA"
+          else
+            # During initial Beta/Production builds, tag current HEAD
+            TARGET_SHA="${{ github.sha }}"
+            echo "🆕 New build: tagging current HEAD: $TARGET_SHA"
+          fi
+          echo "target_commit=$TARGET_SHA" >> "$GITHUB_OUTPUT"
+
       - name: Create Git tag
         shell: bash
         run: |
           TAG="${{ steps.version.outputs.tag }}"
+          TARGET_COMMIT="${{ steps.tag_target.outputs.target_commit }}"
+          
           if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
             echo "Tag $TAG already exists — skipping."
           else
             git config user.name  "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git tag -a "$TAG" -m "Release $TAG"
+            git tag -a "$TAG" "$TARGET_COMMIT" -m "Release $TAG"
             git push origin "$TAG"
-            echo "✅ Created and pushed tag: $TAG"
+            echo "✅ Created and pushed tag: $TAG at commit $TARGET_COMMIT"
           fi
 
       # ----------------------------------------------------------------
-      # 4. Find previous platform tag for commit diff
+      # 5. Find previous platform tag for commit diff
       # ----------------------------------------------------------------
       - name: Resolve previous release tag
         id: prev
@@ -82,7 +112,7 @@ jobs:
           echo "previous_tag=$PREV" >> "$GITHUB_OUTPUT"
 
       # ----------------------------------------------------------------
-      # 5. Generate release notes
+      # 6. Generate release notes
       # ----------------------------------------------------------------
       - name: Generate release notes
         id: notes
@@ -94,6 +124,8 @@ jobs:
           VERSION:       ${{ steps.version.outputs.version }}
           BUILD:         ${{ steps.version.outputs.build }}
           PREV_TAG:      ${{ steps.prev.outputs.previous_tag }}
+          # During promotion, use the stored Beta commit; otherwise use current HEAD
+          TARGET_SHA:    ${{ inputs.lane == 'promote_to_production' && steps.beta_metadata.outputs.commit_sha || github.sha }}
           ACTOR:         ${{ github.actor }}
           SHA:           ${{ github.sha }}
           BRANCH:        ${{ github.ref_name }}
@@ -104,21 +136,34 @@ jobs:
         run: bash .github/scripts/generate-release-notes.sh
 
       # ----------------------------------------------------------------
-      # 6. Create / update GitHub Release
+      # 7. Create / update GitHub Release
       # ----------------------------------------------------------------
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name:   ${{ steps.version.outputs.tag }}
           name:       ${{ steps.notes.outputs.release_title }}
-          body:       ${{ steps.notes.outputs.release_body }}
+          body:       ${{ inputs.lane == 'promote_to_production' && steps.beta_metadata.outputs.release_notes || steps.notes.outputs.release_body }}
           draft:      false
           prerelease: ${{ inputs.lane == 'beta' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT || github.token }}
 
       # ----------------------------------------------------------------
-      # 7. Slack notification
+      # 8. Save release metadata for future promotions (Beta only)
+      # ----------------------------------------------------------------
+      - name: Save release metadata (Beta only)
+        if: inputs.lane == 'beta'
+        shell: bash
+        env:
+          PLATFORM:     ${{ inputs.platform }}
+          TAG:          ${{ steps.version.outputs.tag }}
+          COMMIT_SHA:   ${{ github.sha }}
+          RELEASE_NOTES: ${{ steps.notes.outputs.release_body }}
+        run: bash .github/scripts/save-release-metadata.sh
+
+      # ----------------------------------------------------------------
+      # 9. Slack notification
       # ----------------------------------------------------------------
       - name: Send Slack notification
         shell: bash

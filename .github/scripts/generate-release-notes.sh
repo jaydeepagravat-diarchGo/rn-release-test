@@ -65,6 +65,10 @@ dist_section() {
 }
 
 # ── Commit list ───────────────────────────────────────────────────────────────
+#
+# For Beta releases: diff from PREV_TAG to HEAD (current commit)
+# For promotions: reuse notes from saved Beta metadata (zero commits to prevent
+#                 including any commits added after Beta was created)
 
 RANGE="${PREV_TAG}..HEAD"
 COMMIT_LOG=$(git log "$RANGE" --pretty=format:"%h|%an|%s" 2>/dev/null || true)
