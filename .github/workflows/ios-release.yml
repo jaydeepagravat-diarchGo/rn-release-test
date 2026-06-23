@@ -13,6 +13,9 @@ on:
           - promote_to_production
           - production
 
+permissions:
+  contents: write
+
 jobs:
   ios-release:
     name: "iOS Release (${{ inputs.lane }})"
