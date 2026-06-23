@@ -66,7 +66,11 @@ dist_section() {
 
 # ── Commit list ───────────────────────────────────────────────────────────────
 
-RANGE="${PREV_TAG}..HEAD"
+if [[ -n "${PREV_TAG:-}" ]]; then
+  RANGE="${PREV_TAG}..HEAD"
+else
+  RANGE="HEAD"
+fi
 COMMIT_LOG=$(git log "$RANGE" --pretty=format:"%h|%an|%s" 2>/dev/null || true)
 
 COMMIT_COUNT=0
@@ -84,8 +88,10 @@ fi
 CONTRIBUTOR_COUNT=$(echo "$CONTRIBUTORS_RAW" | sort -u | grep -c . || echo "0")
 
 FILES_CHANGED=""
-if git rev-parse "$PREV_TAG" &>/dev/null 2>&1; then
+if [[ -n "${PREV_TAG:-}" ]] && git rev-parse "$PREV_TAG" &>/dev/null 2>&1; then
   FILES_CHANGED=$(git diff --name-only "$PREV_TAG" HEAD 2>/dev/null | wc -l | tr -d ' ' || true)
+elif [[ -z "${PREV_TAG:-}" ]]; then
+  FILES_CHANGED=$(git diff --name-only --root HEAD 2>/dev/null | wc -l | tr -d ' ' || true)
 fi
 
 # ── Assemble ──────────────────────────────────────────────────────────────────
@@ -106,9 +112,11 @@ if [[ -n "$FILES_CHANGED" ]]; then
   FILES_ROW="| **Files Changed** | ${FILES_CHANGED} |"
 fi
 
+COMPARE_LABEL="${PREV_TAG:-initial commit}"
+
 # Commits section body
 if [[ "$COMMIT_COUNT" -eq 0 ]]; then
-  COMMITS_BODY="_No new commits since \`${PREV_TAG}\` — this is likely a promotion of an existing build._"
+  COMMITS_BODY="_No new commits since \`${COMPARE_LABEL}\` — this is likely a promotion of an existing build._"
 else
   COMMITS_BODY="$COMMIT_LINES"
 fi
@@ -142,7 +150,7 @@ $(dist_section)
 | **Total Commits** | ${COMMIT_COUNT} |
 | **Contributors** | ${CONTRIBUTOR_COUNT} |
 ${FILES_ROW}
-| **Comparing** | \`${PREV_TAG}\` → \`${TAG}\` |
+| **Comparing** | \`${COMPARE_LABEL}\` → \`${TAG}\` |
 
 ---
 

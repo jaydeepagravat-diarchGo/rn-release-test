@@ -61,7 +61,7 @@ jobs:
     name: "Post-Release (Android)"
     needs: android-release
     if: success()
-    uses: ./.github/workflows/post-release.yml
+    uses: .github/workflows/post-release.yml
     with:
       platform: android
       lane: ${{ inputs.lane }}

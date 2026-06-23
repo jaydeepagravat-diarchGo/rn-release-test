@@ -73,13 +73,12 @@ jobs:
             | tail -1)
 
           if [ -z "$PREV" ]; then
-            PREV=$(git rev-list --max-parents=0 HEAD)
-            echo "No previous tag — using initial commit: $PREV"
+            echo "No previous tag found for platform '$PLATFORM'"
+            echo "previous_tag=" >> "$GITHUB_OUTPUT"
           else
             echo "Previous tag: $PREV"
+            echo "previous_tag=$PREV" >> "$GITHUB_OUTPUT"
           fi
-
-          echo "previous_tag=$PREV" >> "$GITHUB_OUTPUT"
 
       # ----------------------------------------------------------------
       # 5. Generate release notes
