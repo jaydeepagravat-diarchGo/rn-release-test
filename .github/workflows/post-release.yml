@@ -15,6 +15,9 @@ on:
       GH_PAT:
         required: false
 
+permissions:
+  contents: write
+
 jobs:
   post-release:
     name: "Post-Release (${{ inputs.platform }})"
