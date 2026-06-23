@@ -57,7 +57,7 @@ PLATFORM_LABEL=$(platform_label)
 RELEASE_TYPE=$(release_type_label)
 INSTALL_URL=$(install_link)
 WORKFLOW_URL="https://github.com/${REPO}/actions/runs/${RUN_ID}"
-RELEASE_DATE=$(date -u +"%Y-%m-%d %H:%M UTC")
+RELEASE_DATE=$(date +"%Y-%m-%d %H:%M IST")
 
 # ── Payload ───────────────────────────────────────────────────────────────────
 
