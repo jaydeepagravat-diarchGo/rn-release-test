@@ -15,8 +15,6 @@ on:
       GH_PAT:
         required: false
 
-permissions:
-  contents: write
 
 jobs:
   post-release:
