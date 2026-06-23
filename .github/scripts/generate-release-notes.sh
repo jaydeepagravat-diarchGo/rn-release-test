@@ -93,7 +93,7 @@ fi
 PLATFORM_LABEL=$(platform_label)
 LANE_LABEL=$(lane_label)
 EMOJI=$(release_emoji)
-RELEASE_DATE=$(date +"%Y-%m-%d %H:%M IST")
+RELEASE_DATE=$(TZ='Asia/Kolkata' date +"%Y-%m-%d %H:%M IST")
 SHORT_SHA="${SHA:0:8}"
 WORKFLOW_URL="https://github.com/${REPO}/actions/runs/${RUN_ID}"
 RELEASE_URL="https://github.com/${REPO}/releases/tag/${TAG}"
