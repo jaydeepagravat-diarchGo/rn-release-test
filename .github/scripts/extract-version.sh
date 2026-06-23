@@ -75,8 +75,7 @@ extract_ios() {
 
   echo "Reading from: $plist"
 
-  # PlistBuddy is available on macOS runners.
-  # python3 fallback is used on Linux (ubuntu-latest) runners.
+  # 1. Read raw values from plist
   if command -v /usr/libexec/PlistBuddy &>/dev/null; then
     VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$plist")
     BUILD=$(/usr/libexec/PlistBuddy   -c "Print CFBundleVersion"            "$plist")
@@ -85,16 +84,40 @@ extract_ios() {
 import sys, plistlib
 with open(sys.argv[1], "rb") as f:
     data = plistlib.load(f)
-print(data[sys.argv[2]])
+print(data.get(sys.argv[2], ""))
 PYEOF
 )
     BUILD=$(python3 - "$plist" CFBundleVersion <<'PYEOF'
 import sys, plistlib
 with open(sys.argv[1], "rb") as f:
     data = plistlib.load(f)
-print(data[sys.argv[2]])
+print(data.get(sys.argv[2], ""))
 PYEOF
 )
+  fi
+
+  # 2. Resolve Xcode placeholders if they reference build settings variables
+  local pbxproj
+  pbxproj=$(find ios -name "project.pbxproj" | head -1)
+
+  if [[ "$VERSION" == "\$(MARKETING_VERSION)" ]]; then
+    if [[ -f "$pbxproj" ]]; then
+      VERSION=$(grep -E '^\s*MARKETING_VERSION\s*=' "$pbxproj" | head -1 | sed -E 's/.*=\s*([^;]+);.*/\1/' | xargs)
+      echo "ℹ️ Resolved $(MARKETING_VERSION) from project.pbxproj -> $VERSION"
+    else
+      echo "ERROR: Version uses $(MARKETING_VERSION) but project.pbxproj not found." >&2
+      exit 1
+    fi
+  fi
+
+  if [[ "$BUILD" == "\$(CURRENT_PROJECT_VERSION)" ]]; then
+    if [[ -f "$pbxproj" ]]; then
+      BUILD=$(grep -E '^\s*CURRENT_PROJECT_VERSION\s*=' "$pbxproj" | head -1 | sed -E 's/.*=\s*([^;]+);.*/\1/' | xargs)
+      echo "ℹ️ Resolved $(CURRENT_PROJECT_VERSION) from project.pbxproj -> $BUILD"
+    else
+      echo "ERROR: Build uses $(CURRENT_PROJECT_VERSION) but project.pbxproj not found." >&2
+      exit 1
+    fi
   fi
 
   if [[ -z "$VERSION" || -z "$BUILD" ]]; then
