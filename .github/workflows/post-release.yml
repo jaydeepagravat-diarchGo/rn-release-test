@@ -66,10 +66,11 @@ jobs:
           PLATFORM="${{ inputs.platform }}"
           CURRENT_TAG="${{ steps.version.outputs.tag }}"
 
+          # Appending '|| true' keeps the script from crashing if grep finds nothing
           PREV=$(git tag --list "${PLATFORM}-v*" \
             | grep -v "^${CURRENT_TAG}$" \
             | sort -V \
-            | tail -1)
+            | tail -1) || true
 
           if [ -z "$PREV" ]; then
             PREV=$(git rev-list --max-parents=0 HEAD)
