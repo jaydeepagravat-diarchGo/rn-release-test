@@ -13,6 +13,9 @@ on:
           - promote_to_production
           - production
 
+permissions:
+  contents: write
+
 jobs:
   android-release:
     name: "Android Release (${{ inputs.lane }})"
